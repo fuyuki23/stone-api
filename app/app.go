@@ -20,11 +20,11 @@ func New() (*App, error) {
 	store := db.NewStore(dbConn)
 
 	serv := web.NewServer(store)
-	api := api.NewApi(serv)
+	localApi := api.NewApi(serv)
 
 	app := &App{
 		serv: serv,
-		api:  api,
+		api:  localApi,
 	}
 
 	return app, nil
