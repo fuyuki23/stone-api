@@ -7,6 +7,10 @@ import (
 type RootConfig struct {
 	Server struct {
 		Port int `toml:"port"`
+		Jwt  struct {
+			PrivateKey string `toml:"privateKey"`
+			PublicKey  string `toml:"publicKey"`
+		} `toml:"jwt"`
 	} `toml:"server"`
 }
 

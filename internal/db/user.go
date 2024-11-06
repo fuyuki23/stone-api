@@ -10,19 +10,23 @@ import (
 )
 
 type UserEntity struct {
-	ID        uuid.UUID `db:"id"`
-	Email     string    `db:"email"`
-	Password  string    `db:"password"`
-	Name      string    `db:"name"`
-	CreatedAt time.Time `db:"create_at"`
-	UpdatedAt time.Time `db:"update_at"`
+	ID        model.BUID     `db:"id"`
+	Email     string         `db:"email"`
+	Password  string         `db:"password"`
+	Name      sql.NullString `db:"name"`
+	CreatedAt time.Time      `db:"create_at"`
+	UpdatedAt time.Time      `db:"update_at"`
 }
 
 func (u UserEntity) ConvertToUser() model.User {
+	var name *string
+	if u.Name.Valid {
+		name = &u.Name.String
+	}
 	return model.User{
-		ID:        u.ID,
+		ID:        uuid.UUID(u.ID),
 		Email:     u.Email,
-		Name:      u.Name,
+		Name:      name,
 		CreatedAt: u.CreatedAt,
 	}
 }
@@ -42,6 +46,12 @@ func (s *UserStore) FindByEmail(email string) (*UserEntity, error) {
 	}
 
 	return &user, nil
+}
+
+func (s *UserStore) Create(user UserEntity) error {
+	// create user with sqlx.DB and after insert get the last inserted id
+	_, err := s.db.Exec("insert into user (id, email, password, name) values (?, ?, ?, ?)", user.ID, user.Email, user.Password, user.Name)
+	return err
 }
 
 func NewUserStore(db *sqlx.DB) *UserStore {
