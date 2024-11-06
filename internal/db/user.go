@@ -1,7 +1,10 @@
 package db
 
 import (
+	"database/sql"
 	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
+	"github.com/pkg/errors"
 	"stone-api/internal/model"
 	"time"
 )
@@ -22,4 +25,25 @@ func (u UserEntity) ConvertToUser() model.User {
 		Name:      u.Name,
 		CreatedAt: u.CreatedAt,
 	}
+}
+
+type UserStore struct {
+	db *sqlx.DB
+}
+
+func (s *UserStore) FindByEmail(email string) (*UserEntity, error) {
+	var user UserEntity
+	if err := s.db.QueryRowx("select * from user where email = ?", email).StructScan(&user); err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, nil
+		}
+
+		return nil, err
+	}
+
+	return &user, nil
+}
+
+func NewUserStore(db *sqlx.DB) *UserStore {
+	return &UserStore{db: db}
 }

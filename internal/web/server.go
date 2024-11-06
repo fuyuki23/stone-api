@@ -8,26 +8,31 @@ import (
 	"github.com/rs/zerolog/log"
 	"net/http"
 	"stone-api/internal/config"
+	"stone-api/internal/db"
 )
 
 type Server struct {
 	serv       *http.Server
 	BaseRouter *mux.Router
 
-	db *sqlx.DB
+	store *db.Store
 }
 
-func NewServer(db *sqlx.DB) *Server {
+func NewServer(store *db.Store) *Server {
 	server := &Server{
 		BaseRouter: mux.NewRouter().StrictSlash(true),
-		db:         db,
+		store:      store,
 	}
 
 	return server
 }
 
 func (server *Server) DB() *sqlx.DB {
-	return server.db
+	return server.store.DB()
+}
+
+func (server *Server) Store() *db.Store {
+	return server.store
 }
 
 func (server *Server) Start() {

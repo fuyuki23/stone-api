@@ -9,6 +9,8 @@ import (
 type Api struct {
 	serv *web.Server
 	root *mux.Router
+
+	// handlers
 	user *UserHandler
 }
 
