@@ -1,7 +1,6 @@
 package app
 
 import (
-	"github.com/jmoiron/sqlx"
 	"stone-api/api"
 	"stone-api/internal/db"
 	"stone-api/internal/web"
@@ -10,22 +9,22 @@ import (
 type App struct {
 	serv *web.Server
 	api  *api.Api
-	db   *sqlx.DB
 }
 
 func New() (*App, error) {
-	db, err := db.Init()
+	dbConn, err := db.Init()
 	if err != nil {
 		return nil, err
 	}
 
-	serv := web.NewServer(db)
-	api := api.NewApi(serv)
+	store := db.NewStore(dbConn)
+
+	serv := web.NewServer(store)
+	localApi := api.NewApi(serv)
 
 	app := &App{
 		serv: serv,
-		api:  api,
-		db:   db,
+		api:  localApi,
 	}
 
 	return app, nil

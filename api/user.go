@@ -1,11 +1,8 @@
 package api
 
 import (
-	"database/sql"
 	"encoding/json"
 	"github.com/gorilla/mux"
-	"github.com/jmoiron/sqlx"
-	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 	"net/http"
 	"stone-api/internal/db"
@@ -15,12 +12,12 @@ import (
 )
 
 type UserHandler struct {
-	db *sqlx.DB
+	userStore *db.UserStore
 }
 
 func (api *Api) initUserApi(router *mux.Router) {
 	api.user = &UserHandler{
-		db: api.serv.DB(),
+		userStore: api.serv.Store().UserStore(),
 	}
 
 	router.Handle("/login", web.BaseHandler(api.user.login)).Methods(http.MethodPost)
@@ -41,13 +38,12 @@ func (h *UserHandler) login(w http.ResponseWriter, r *http.Request) error {
 		return model.ErrBadRequest
 	}
 
-	var userEntity db.UserEntity
-	if err := h.db.QueryRowx("select id, email, password, name, create_at, update_at from user where email = ?", payload.Email).StructScan(&userEntity); err != nil {
-		if !errors.Is(err, sql.ErrNoRows) {
-			log.Error().Err(err).Msg("failed to query user")
-			return err
-		}
-		log.Error().Msg("user not found")
+	userEntity, err := h.userStore.FindByEmail(payload.Email)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to query user")
+		return err
+	}
+	if userEntity == nil {
 		return model.ErrUserNotFound
 	}
 
