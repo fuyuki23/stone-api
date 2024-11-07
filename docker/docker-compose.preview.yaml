@@ -1,0 +1,36 @@
+name: stone-preview
+
+services:
+  stone:
+    build:
+      context: ../
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    networks:
+      - isolated
+    depends_on:
+      database:
+        condition: service_healthy
+    volumes:
+      - ../config.toml:/config.toml
+  database:
+    image: mysql:8.0.39
+    restart: always
+    environment:
+      MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
+      MYSQL_DATABASE: stone
+      MYSQL_USER: stone
+      MYSQL_PASSWORD: stone1234
+    networks:
+      - isolated
+    volumes:
+      - ./mysql/docker-entrypoint-initdb.d/:/docker-entrypoint-initdb.d/
+    healthcheck:
+      test: [ "CMD", "mysqladmin" ,"ping", "-h", "localhost" ]
+      timeout: 5s
+      retries: 10
+
+networks:
+  isolated:
+    driver: bridge

@@ -8,6 +8,7 @@ import (
 	"stone-api/app"
 	"stone-api/internal/config"
 	"time"
+	_ "time/tzdata"
 )
 
 func main() {
@@ -20,12 +21,12 @@ func main() {
 	initLogger()
 	initConfig()
 
-	app, err := app.New()
+	localApp, err := app.New()
 	if err != nil {
 		panic(errors.Wrap(err, "failed to initialize app"))
 	}
 
-	app.Serve()
+	localApp.Serve()
 }
 
 func initLogger() {

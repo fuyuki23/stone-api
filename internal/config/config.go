@@ -12,6 +12,9 @@ type RootConfig struct {
 			PublicKey  string `toml:"publicKey"`
 		} `toml:"jwt"`
 	} `toml:"server"`
+	Database struct {
+		URI string `toml:"uri"`
+	} `toml:"database"`
 }
 
 var instance RootConfig

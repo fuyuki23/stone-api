@@ -4,12 +4,13 @@ import (
 	_ "github.com/go-sql-driver/mysql"
 	"github.com/jmoiron/sqlx"
 	"github.com/jmoiron/sqlx/reflectx"
+	"stone-api/internal/config"
 	"strings"
 	"time"
 )
 
 func Init() (*sqlx.DB, error) {
-	db, err := sqlx.Connect("mysql", "stone:stone1234@tcp(127.0.0.1:12345)/stone?charset=utf8&parseTime=True&loc=UTC")
+	db, err := sqlx.Connect("mysql", config.Get().Database.URI)
 	if err != nil {
 		return nil, err
 	}

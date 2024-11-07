@@ -5,11 +5,13 @@ services:
     image: mysql:8.0.39
     restart: always
     ports:
-      - "12345:3306"
+      - "3306:3306"
     environment:
       MYSQL_ALLOW_EMPTY_PASSWORD: "yes"
       MYSQL_DATABASE: stone
       MYSQL_USER: stone
       MYSQL_PASSWORD: stone1234
+    networks:
+      - isolated
     volumes:
       - ./mysql/docker-entrypoint-initdb.d/:/docker-entrypoint-initdb.d/
