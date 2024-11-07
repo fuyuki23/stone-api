@@ -2,13 +2,14 @@ package web
 
 import (
 	"fmt"
+	"net/http"
+	"stone-api/internal/config"
+	"stone-api/internal/db"
+
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
 	"github.com/jmoiron/sqlx"
 	"github.com/rs/zerolog/log"
-	"net/http"
-	"stone-api/internal/config"
-	"stone-api/internal/db"
 )
 
 type Server struct {
@@ -64,8 +65,9 @@ func (server *Server) PrintRoutes() {
 			return nil
 			//return err
 		}
+		name := route.GetName()
 		for _, method := range methods {
-			log.Info().Str("Path", pathRegexp).Msg(fmt.Sprintf("[%s] %s", method, pathTemplate))
+			log.Info().Str("Name", name).Str("Path", pathRegexp).Msgf("[%s] %s", method, pathTemplate)
 		}
 		return nil
 	})

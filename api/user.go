@@ -3,17 +3,17 @@ package api
 import (
 	"database/sql"
 	"encoding/json"
-	"github.com/google/uuid"
-	"github.com/gorilla/mux"
-	"github.com/rs/zerolog/log"
-	"golang.org/x/crypto/bcrypt"
 	"net/http"
 	"stone-api/internal/db"
 	"stone-api/internal/model"
 	"stone-api/internal/response"
 	"stone-api/internal/token"
-	"stone-api/internal/web"
 	"time"
+
+	"github.com/google/uuid"
+	"github.com/gorilla/mux"
+	"github.com/rs/zerolog/log"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type UserHandler struct {
@@ -25,8 +25,9 @@ func (api *Api) initUserApi(router *mux.Router) {
 		userStore: api.serv.Store().UserStore(),
 	}
 
-	router.Handle("/login", web.BaseHandler(api.user.login)).Methods(http.MethodPost)
-	router.Handle("/register", web.BaseHandler(api.user.register)).Methods(http.MethodPost)
+	router.Handle("/login", api.BaseHandler(api.user.login)).Methods(http.MethodPost).Name("Login")
+	router.Handle("/register", api.BaseHandler(api.user.register)).Methods(http.MethodPost).Name("Register")
+	router.Handle("/me", api.AuthHandler(api.user.me)).Methods(http.MethodGet).Name("Me")
 }
 
 type LoginRequest struct {
@@ -133,11 +134,16 @@ func (h *UserHandler) register(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	//userEntity, err = h.userStore.Create(payload.Email, payload.Password, payload.Name)
-	//if err != nil {
-	//	log.Error().Err(err).Msg("failed to create user")
-	//	return err
-	//}
-
 	return response.Ok("ok").Send(w)
+}
+
+func (h *UserHandler) me(w http.ResponseWriter, r *http.Request) error {
+	var sessionUser model.User
+	if err := getUser(r, &sessionUser); err != nil {
+		return err
+	}
+
+	log.Debug().Interface("sessionUser", sessionUser).Msg("authorized")
+
+	return response.Ok(sessionUser).Send(w)
 }

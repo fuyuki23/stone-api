@@ -1,9 +1,9 @@
 package response
 
 import (
-	"github.com/goccy/go-json"
-	"github.com/rs/zerolog/log"
 	"net/http"
+
+	"github.com/goccy/go-json"
 )
 
 type ApiResponse struct {
@@ -17,7 +17,6 @@ func (res ApiResponse) Status(status int) ApiResponse {
 }
 
 func (res ApiResponse) Send(w http.ResponseWriter) error {
-	log.Debug().Int("status", res.status).Msg("response")
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(res.status)
 	return json.NewEncoder(w).Encode(res.data)

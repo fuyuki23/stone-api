@@ -1,9 +1,10 @@
 package api
 
 import (
-	"github.com/gorilla/mux"
 	"net/http"
 	"stone-api/internal/web"
+
+	"github.com/gorilla/mux"
 )
 
 type Api struct {
@@ -24,8 +25,8 @@ func NewApi(serv *web.Server) *Api {
 
 	api.initUserApi(api.root.PathPrefix("/users").Subrouter())
 
-	api.root.NotFoundHandler = http.HandlerFunc(web.NotFound)
-	api.root.MethodNotAllowedHandler = http.HandlerFunc(web.NotFound)
+	api.root.NotFoundHandler = http.HandlerFunc(NotFound)
+	api.root.MethodNotAllowedHandler = http.HandlerFunc(NotFound)
 
 	return api
 }
