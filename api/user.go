@@ -3,17 +3,18 @@ package api
 import (
 	"database/sql"
 	"encoding/json"
-	"net/http"
-	"stone-api/internal/db"
-	"stone-api/internal/model"
-	"stone-api/internal/response"
-	"stone-api/internal/token"
-	"time"
-
 	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	"github.com/rs/zerolog/log"
 	"golang.org/x/crypto/bcrypt"
+	"net/http"
+	"net/mail"
+	"stone-api/internal/db"
+	"stone-api/internal/model"
+	"stone-api/internal/response"
+	"stone-api/internal/token"
+	"strings"
+	"unicode/utf8"
 )
 
 type UserHandler struct {
@@ -59,7 +60,7 @@ func (h *UserHandler) login(w http.ResponseWriter, r *http.Request) error {
 		return model.ErrInvalidCredentials
 	}
 
-	user := userEntity.ConvertToUser()
+	user := userEntity.ConvertToModel()
 	tokens, err := token.CreateTokens(user)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to create tokens")
@@ -67,7 +68,7 @@ func (h *UserHandler) login(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	res := LoginResponse{
-		User:   userEntity.ConvertToUser(),
+		User:   userEntity.ConvertToModel(),
 		Tokens: *tokens,
 	}
 	return response.Ok(res).Send(w)
@@ -79,6 +80,52 @@ type RegisterRequest struct {
 	Name     *string `json:"name"`
 }
 
+func (r RegisterRequest) Validate() error {
+	if r.Email == "" {
+		log.Error().Msg("email is required")
+		return model.ErrBadRequest
+	}
+	emailLength := utf8.RuneCountInString(r.Email)
+	if emailLength > 100 {
+		log.Error().Msg("email is too long")
+		return model.ErrBadRequest
+	}
+	if email, err := mail.ParseAddress(r.Email); err != nil || email.Address != r.Email {
+		log.Error().Msg("email is invalid")
+		return model.ErrBadRequest
+	}
+	if r.Password == "" {
+		log.Error().Msg("password is required")
+		return model.ErrBadRequest
+	}
+	if passwordLength := utf8.RuneCountInString(r.Password); passwordLength < 6 || passwordLength > 32 {
+		log.Error().Msg("password length must be between 6 and 32")
+		return model.ErrBadRequest
+	}
+	if r.Name != nil {
+		nameLength := utf8.RuneCountInString(*r.Name)
+		if nameLength > 50 {
+			log.Error().Msg("name is too long")
+			return model.ErrBadRequest
+		}
+	}
+
+	return nil
+}
+
+func (r *RegisterRequest) Sanitize() error {
+	r.Email = strings.Trim(r.Email, " ")
+	// r.Password = strings.Trim(r.Password, " ") // Someone wants to use whitespace as password
+	if r.Name != nil {
+		*r.Name = strings.Trim(*r.Name, " ")
+		if len(*r.Name) == 0 {
+			r.Name = nil
+		}
+	}
+
+	return nil
+}
+
 //type RegisterResponse = string
 
 func (h *UserHandler) register(w http.ResponseWriter, r *http.Request) error {
@@ -87,6 +134,14 @@ func (h *UserHandler) register(w http.ResponseWriter, r *http.Request) error {
 		log.Error().Err(err).Msg("failed to decode request body")
 		return model.ErrBadRequest
 	}
+	if err := payload.Validate(); err != nil {
+		return err
+	}
+	log.Debug().Interface("payload", payload).Msg("before")
+	if err := payload.Sanitize(); err != nil {
+		return err
+	}
+	log.Debug().Interface("payload", payload).Msg("after")
 
 	existUser, err := h.userStore.FindByEmail(payload.Email)
 	if err != nil {
@@ -122,14 +177,12 @@ func (h *UserHandler) register(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	newUser := db.UserEntity{
-		ID:        model.BUID(newUserID),
-		Email:     payload.Email,
-		Password:  string(hashedPassword),
-		Name:      maybeName,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		ID:       db.BUID(newUserID),
+		Email:    payload.Email,
+		Password: string(hashedPassword),
+		Name:     maybeName,
 	}
-	if err := h.userStore.Create(newUser); err != nil {
+	if err := h.userStore.Create(&newUser); err != nil {
 		log.Error().Err(err).Msg("failed to create user")
 		return err
 	}
