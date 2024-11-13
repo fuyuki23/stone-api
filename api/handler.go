@@ -71,7 +71,7 @@ func getUser(r *http.Request, user *model.User) error {
 		return model.ErrUnauthorized
 	}
 
-	*user = maybeUser.ConvertToUser()
+	*user = maybeUser.ConvertToModel()
 	return nil
 }
 

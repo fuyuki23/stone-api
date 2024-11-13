@@ -12,7 +12,8 @@ type Api struct {
 	root *mux.Router
 
 	// handlers
-	user *UserHandler
+	user  *UserHandler
+	diary *DiaryHandler
 }
 
 func NewApi(serv *web.Server) *Api {
@@ -24,6 +25,7 @@ func NewApi(serv *web.Server) *Api {
 	api.root = api.serv.BaseRouter
 
 	api.initUserApi(api.root.PathPrefix("/users").Subrouter())
+	api.initDiaryApi(api.root.PathPrefix("/diaries").Subrouter())
 
 	api.root.NotFoundHandler = http.HandlerFunc(NotFound)
 	api.root.MethodNotAllowedHandler = http.HandlerFunc(NotFound)

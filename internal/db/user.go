@@ -10,7 +10,7 @@ import (
 )
 
 type UserEntity struct {
-	ID        model.BUID     `db:"id"`
+	ID        BUID           `db:"id"`
 	Email     string         `db:"email"`
 	Password  string         `db:"password"`
 	Name      sql.NullString `db:"name"`
@@ -18,7 +18,7 @@ type UserEntity struct {
 	UpdatedAt time.Time      `db:"update_at"`
 }
 
-func (u UserEntity) ConvertToUser() model.User {
+func (u UserEntity) ConvertToModel() model.User {
 	var name *string
 	if u.Name.Valid {
 		name = &u.Name.String
@@ -48,10 +48,18 @@ func (s *UserStore) FindByEmail(email string) (*UserEntity, error) {
 	return &user, nil
 }
 
-func (s *UserStore) Create(user UserEntity) error {
+func (s *UserStore) Create(user *UserEntity) error {
 	// create user with sqlx.DB and after insert get the last inserted id
 	_, err := s.db.Exec("insert into user (id, email, password, name) values (?, ?, ?, ?)", user.ID, user.Email, user.Password, user.Name)
-	return err
+	if err != nil {
+		return err
+	}
+
+	if err = s.db.QueryRowx("select * from user where id = user.ID").StructScan(user); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func NewUserStore(db *sqlx.DB) *UserStore {

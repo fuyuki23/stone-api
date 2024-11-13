@@ -56,10 +56,10 @@ func (server *Server) PrintRoutes() {
 		if err != nil {
 			return nil
 		}
-		pathRegexp, err := route.GetPathRegexp()
-		if err != nil {
-			return err
-		}
+		_, err = route.GetPathRegexp()
+		//if err != nil {
+		//	return err
+		//}
 		methods, err := route.GetMethods()
 		if err != nil {
 			return nil
@@ -67,7 +67,7 @@ func (server *Server) PrintRoutes() {
 		}
 		name := route.GetName()
 		for _, method := range methods {
-			log.Info().Str("Name", name).Str("Path", pathRegexp).Msgf("[%s] %s", method, pathTemplate)
+			log.Info().Msgf("[%s] %s %s", method, pathTemplate, name)
 		}
 		return nil
 	})
