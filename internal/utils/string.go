@@ -2,9 +2,10 @@ package utils
 
 import "bytes"
 
-func AppendString(str1, str2 string) string {
+func AppendString(strs ...string) string {
 	var b bytes.Buffer
-	b.WriteString(str1)
-	b.WriteString(str2)
+	for _, str := range strs {
+		b.WriteString(str)
+	}
 	return b.String()
 }
