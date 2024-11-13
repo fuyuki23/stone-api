@@ -6,7 +6,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/rs/zerolog/log"
 	"net/http"
-	"regexp"
 	"slices"
 	"stone-api/internal/db"
 	"stone-api/internal/model"
@@ -34,8 +33,6 @@ func (api *Api) initDiaryApi(router *mux.Router) {
 	router.Handle("/{id}", api.AuthHandler(api.diary.delete)).Methods(http.MethodDelete).Name("Delete Diary")
 }
 
-var IS_DATE = regexp.MustCompile(`^\d{4}-\d{2}-\d{2}$`)
-
 type ListDiaryWithRangeRequest struct {
 	Start time.Time
 	End   time.Time
@@ -52,7 +49,7 @@ func (r *ListDiaryWithRangeRequest) Parse(req *http.Request) error {
 		return model.ErrBadRequest
 	}
 
-	if !IS_DATE.Match([]byte(startDateRange)) || !IS_DATE.Match([]byte(endDateRange)) {
+	if !utils.IsDate.Match([]byte(startDateRange)) || !utils.IsDate.Match([]byte(endDateRange)) {
 		log.Error().Msg("invalid date range")
 		return model.ErrBadRequest
 	}
@@ -73,20 +70,20 @@ func (r *ListDiaryWithRangeRequest) Parse(req *http.Request) error {
 	return nil
 }
 
-func (h *DiaryHandler) listWithRange(w http.ResponseWriter, r *http.Request) error {
+func (h *DiaryHandler) listWithRange(r *http.Request) (any, error) {
 	var sessionUser model.User
 	if err := getUser(r, &sessionUser); err != nil {
-		return err
+		return nil, err
 	}
 
 	payload := ListDiaryWithRangeRequest{}
 	if err := payload.Parse(r); err != nil {
-		return err
+		return nil, err
 	}
 
 	diaryEntities, err := h.diaryStore.FindWithRange(db.BUID(sessionUser.ID), payload.Start, payload.End)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	var diaries = make([]model.Diary, len(diaryEntities))
@@ -94,7 +91,7 @@ func (h *DiaryHandler) listWithRange(w http.ResponseWriter, r *http.Request) err
 		diaries[i] = diary.ConvertToModel()
 	}
 
-	return response.Ok(diaries).Send(w)
+	return diaries, nil
 }
 
 type CreateDiaryRequest struct {
@@ -137,31 +134,31 @@ func (r CreateDiaryRequest) Validate() error {
 	return nil
 }
 
-func (h *DiaryHandler) create(w http.ResponseWriter, r *http.Request) error {
+func (h *DiaryHandler) create(r *http.Request) (any, error) {
 	var sessionUser model.User
 	if err := getUser(r, &sessionUser); err != nil {
-		return err
+		return nil, err
 	}
 
 	var payload CreateDiaryRequest
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		return model.ErrBadRequest
+		return nil, model.ErrBadRequest
 	}
 	if err := payload.Validate(); err != nil {
-		return err
+		return nil, err
 	}
 
 	isExist, err := h.diaryStore.FindByDate(db.BUID(sessionUser.ID), time.Now())
 	if err != nil {
-		return err
+		return nil, err
 	} else if isExist != nil {
 		log.Error().Msg("diary already exists")
-		return model.ErrDiaryAlreadyExists
+		return nil, model.ErrDiaryAlreadyExists
 	}
 
 	newDiaryID, err := uuid.NewV7()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	newDiary := db.DiaryEntity{
 		ID:      db.BUID(newDiaryID),
@@ -171,10 +168,10 @@ func (h *DiaryHandler) create(w http.ResponseWriter, r *http.Request) error {
 		Mood:    payload.Mood,
 	}
 	if err = h.diaryStore.Create(&newDiary); err != nil {
-		return err
+		return nil, err
 	}
 
-	return response.Ok(newDiary.ConvertToModel()).Status(http.StatusCreated).Send(w)
+	return response.Ok(newDiary.ConvertToModel()).Status(http.StatusCreated), nil
 }
 
 type UpdateDiaryRequest struct {
@@ -228,39 +225,39 @@ func (r UpdateDiaryRequest) Validate() error {
 	return nil
 }
 
-func (h *DiaryHandler) update(w http.ResponseWriter, r *http.Request) error {
+func (h *DiaryHandler) update(r *http.Request) (any, error) {
 	diaryPathID, ok := mux.Vars(r)["id"]
 	if !ok {
-		return model.ErrNotFound
+		return nil, model.ErrNotFound
 	}
 	diaryID, err := uuid.Parse(diaryPathID)
 	if err != nil {
-		return model.ErrNotFound
+		return nil, model.ErrNotFound
 	}
 
 	var sessionUser model.User
 	if err = getUser(r, &sessionUser); err != nil {
-		return err
+		return nil, err
 	}
 
 	var payload UpdateDiaryRequest
 	if err = json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		return model.ErrBadRequest
+		return nil, model.ErrBadRequest
 	}
 	if err = payload.Validate(); err != nil {
-		return err
+		return nil, err
 	}
 
 	diary, err := h.diaryStore.FindByID(db.BUID(diaryID), db.BUID(sessionUser.ID))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if diary == nil {
-		return model.ErrDiaryNotFound
+		return nil, model.ErrDiaryNotFound
 	}
 
 	if !utils.IsSameDate(diary.CreatedAt, time.Now()) {
-		return model.ErrDiaryNotToday
+		return nil, model.ErrDiaryNotToday
 	}
 
 	if payload.Title != nil {
@@ -274,39 +271,39 @@ func (h *DiaryHandler) update(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	if err = h.diaryStore.Update(diary); err != nil {
-		return err
+		return nil, err
 	}
 
-	return response.Ok(diary.ConvertToModel()).Send(w)
+	return diary.ConvertToModel(), nil
 }
 
-func (h *DiaryHandler) delete(w http.ResponseWriter, r *http.Request) error {
+func (h *DiaryHandler) delete(r *http.Request) (any, error) {
 	diaryPathID, ok := mux.Vars(r)["id"]
 	if !ok {
-		return model.ErrNotFound
+		return nil, model.ErrNotFound
 	}
 	diaryID, err := uuid.Parse(diaryPathID)
 	if err != nil {
-		return model.ErrNotFound
+		return nil, model.ErrNotFound
 	}
 
 	var sessionUser model.User
 	if err = getUser(r, &sessionUser); err != nil {
-		return err
+		return nil, err
 	}
 
 	diary, err := h.diaryStore.FindByID(db.BUID(diaryID), db.BUID(sessionUser.ID))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if diary == nil {
-		return model.ErrDiaryNotFound
+		return nil, model.ErrDiaryNotFound
 	}
 
 	err = h.diaryStore.DeleteByID(db.BUID(diaryID), db.BUID(sessionUser.ID))
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	return response.Ok("").Status(http.StatusNoContent).Send(w)
+	return response.Ok("").Status(http.StatusNoContent), nil
 }

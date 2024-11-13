@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"stone-api/internal/config"
 	"stone-api/internal/db"
+	"stone-api/internal/utils"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -67,7 +68,7 @@ func (server *Server) PrintRoutes() {
 		}
 		name := route.GetName()
 		for _, method := range methods {
-			log.Info().Msgf("[%s] %s %s", method, pathTemplate, name)
+			log.Info().Msgf("%8s %s [%s]", utils.AppendString("[", method, "]"), pathTemplate, name)
 		}
 		return nil
 	})

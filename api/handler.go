@@ -12,55 +12,60 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-type StoneHandler = func(w http.ResponseWriter, r *http.Request) error
+type StoneHandler = func(r *http.Request) (any, error)
 
 func (api *Api) BaseHandler(handle StoneHandler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if err := handle(w, r); err != nil {
-			_ = response.Fail(err).Send(w)
+		if res, err := handle(r); err != nil {
+			err = response.Fail(err).Send(w)
+			if err != nil {
+				log.Error().Err(err).Send()
+			}
+		} else {
+			if apiRes, ok := res.(response.ApiResponse); !ok {
+				err = response.Ok(res).Send(w)
+			} else {
+				err = apiRes.Send(w)
+			}
+			if err != nil {
+				log.Error().Err(err).Send()
+			}
 		}
 	})
 }
 
 func (api *Api) AuthHandler(handle StoneHandler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return api.BaseHandler(func(r *http.Request) (any, error) {
 		authorization := strings.Trim(r.Header.Get("Authorization"), " ")
 		if authorization == "" || !strings.HasPrefix(authorization, "Bearer ") {
 			log.Debug().Msg("no or invalid authorization header")
-			_ = response.Fail(model.ErrUnauthorized).Status(http.StatusUnauthorized).Send(w)
-			return
+			return nil, model.ErrUnauthorized
 		}
 		accessToken := authorization[7:]
 		isOk, err := token.ValidateToken("access", accessToken)
 		if err != nil || !isOk {
 			log.Debug().Err(err).Msg("failed to validate access token")
-			_ = response.Fail(model.ErrUnauthorized).Status(http.StatusUnauthorized).Send(w)
-			return
+			return nil, model.ErrUnauthorized
 		}
 		email, err := token.GetEmailFromToken(accessToken)
 		if err != nil {
 			log.Debug().Err(err).Msg("failed to get email from token")
-			_ = response.Fail(model.ErrUnauthorized).Status(http.StatusUnauthorized).Send(w)
-			return
+			return nil, model.ErrUnauthorized
 		}
 
 		user, err := api.user.userStore.FindByEmail(email)
 		if err != nil {
 			log.Debug().Err(err).Msg("failed to query user")
-			_ = response.Fail(model.ErrUnknown).Status(http.StatusInternalServerError).Send(w)
-			return
+			return nil, model.ErrUnknown
 		}
 		if user == nil {
 			log.Debug().Msg("user not found")
-			_ = response.Fail(model.ErrUnauthorized).Status(http.StatusUnauthorized).Send(w)
-			return
+			return nil, model.ErrUnauthorized
 		}
 
 		r = r.WithContext(context.WithValue(r.Context(), "session", user))
 
-		if err := handle(w, r); err != nil {
-			_ = response.Fail(err).Send(w)
-		}
+		return handle(r)
 	})
 }
 
@@ -76,5 +81,5 @@ func getUser(r *http.Request, user *model.User) error {
 }
 
 var NotFound = func(w http.ResponseWriter, r *http.Request) {
-	_ = response.Fail(model.ErrNotFound).Status(http.StatusNotFound).Send(w)
+	log.Error().Err(response.Fail(model.ErrNotFound).Status(http.StatusNotFound).Send(w)).Send()
 }

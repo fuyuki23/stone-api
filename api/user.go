@@ -40,38 +40,37 @@ type LoginResponse struct {
 	Tokens model.Tokens `json:"tokens"`
 }
 
-func (h *UserHandler) login(w http.ResponseWriter, r *http.Request) error {
+func (h *UserHandler) login(r *http.Request) (any, error) {
 	payload := LoginRequest{}
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		log.Error().Err(err).Msg("failed to decode request body")
-		return model.ErrBadRequest
+		return nil, model.ErrBadRequest
 	}
 
 	userEntity, err := h.userStore.FindByEmail(payload.Email)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to query user")
-		return err
+		return nil, err
 	}
 	if userEntity == nil {
-		return model.ErrInvalidCredentials
+		return nil, model.ErrInvalidCredentials
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(userEntity.Password), []byte(payload.Password)); err != nil {
-		return model.ErrInvalidCredentials
+	if err = bcrypt.CompareHashAndPassword([]byte(userEntity.Password), []byte(payload.Password)); err != nil {
+		return nil, model.ErrInvalidCredentials
 	}
 
 	user := userEntity.ConvertToModel()
 	tokens, err := token.CreateTokens(user)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to create tokens")
-		return model.ErrUnknown
+		return nil, model.ErrUnknown
 	}
 
-	res := LoginResponse{
+	return LoginResponse{
 		User:   userEntity.ConvertToModel(),
 		Tokens: *tokens,
-	}
-	return response.Ok(res).Send(w)
+	}, nil
 }
 
 type RegisterRequest struct {
@@ -128,34 +127,34 @@ func (r *RegisterRequest) Sanitize() error {
 
 //type RegisterResponse = string
 
-func (h *UserHandler) register(w http.ResponseWriter, r *http.Request) error {
+func (h *UserHandler) register(r *http.Request) (any, error) {
 	payload := RegisterRequest{}
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
 		log.Error().Err(err).Msg("failed to decode request body")
-		return model.ErrBadRequest
+		return nil, model.ErrBadRequest
 	}
 	if err := payload.Validate(); err != nil {
-		return err
+		return nil, err
 	}
 	log.Debug().Interface("payload", payload).Msg("before")
 	if err := payload.Sanitize(); err != nil {
-		return err
+		return nil, err
 	}
 	log.Debug().Interface("payload", payload).Msg("after")
 
 	existUser, err := h.userStore.FindByEmail(payload.Email)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to query user")
-		return err
+		return nil, err
 	}
 	if existUser != nil {
-		return model.ErrUserAlreadyExists
+		return nil, model.ErrUserAlreadyExists
 	}
 
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(payload.Password), bcrypt.DefaultCost)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to hash password")
-		return model.ErrUnknown
+		return nil, model.ErrUnknown
 	}
 
 	var maybeName sql.NullString
@@ -173,7 +172,7 @@ func (h *UserHandler) register(w http.ResponseWriter, r *http.Request) error {
 	newUserID, err := uuid.NewV7()
 	if err != nil {
 		log.Error().Err(err).Msg("failed to generate user id")
-		return model.ErrUnknown
+		return nil, model.ErrUnknown
 	}
 
 	newUser := db.UserEntity{
@@ -182,21 +181,21 @@ func (h *UserHandler) register(w http.ResponseWriter, r *http.Request) error {
 		Password: string(hashedPassword),
 		Name:     maybeName,
 	}
-	if err := h.userStore.Create(&newUser); err != nil {
+	if err = h.userStore.Create(&newUser); err != nil {
 		log.Error().Err(err).Msg("failed to create user")
-		return err
+		return nil, err
 	}
 
-	return response.Ok("ok").Send(w)
+	return response.Ok("ok").Status(http.StatusCreated), nil
 }
 
-func (h *UserHandler) me(w http.ResponseWriter, r *http.Request) error {
+func (h *UserHandler) me(r *http.Request) (any, error) {
 	var sessionUser model.User
 	if err := getUser(r, &sessionUser); err != nil {
-		return err
+		return nil, err
 	}
 
 	log.Debug().Interface("sessionUser", sessionUser).Msg("authorized")
 
-	return response.Ok(sessionUser).Send(w)
+	return sessionUser, nil
 }
