@@ -174,7 +174,7 @@ func (h *DiaryHandler) create(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	return response.Ok(newDiary.ConvertToModel()).Send(w)
+	return response.Ok(newDiary.ConvertToModel()).Status(http.StatusCreated).Send(w)
 }
 
 type UpdateDiaryRequest struct {
