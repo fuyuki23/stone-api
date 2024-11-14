@@ -40,9 +40,14 @@ func (server *Server) Store() *db.Store {
 func (server *Server) Start() {
 	addr := fmt.Sprintf(":%d", config.Get().Server.Port)
 
+	server.BaseRouter.Use(handlers.RecoveryHandler(handlers.PrintRecoveryStack(true)))
+	server.BaseRouter.Use(RequestID)
+
 	server.serv = &http.Server{
-		Addr:    addr,
-		Handler: handlers.LoggingHandler(log.Logger, handlers.CompressHandler(server.BaseRouter)),
+		Addr: addr,
+		Handler: handlers.LoggingHandler(
+			log.Logger,
+			handlers.CompressHandler(server.BaseRouter)),
 	}
 
 	server.PrintRoutes()
@@ -57,7 +62,7 @@ func (server *Server) PrintRoutes() {
 		if err != nil {
 			return nil
 		}
-		_, err = route.GetPathRegexp()
+		_, _ = route.GetPathRegexp()
 		//if err != nil {
 		//	return err
 		//}
