@@ -35,6 +35,10 @@ type UserStore struct {
 	db *sqlx.DB
 }
 
+func NewUserStore(db *sqlx.DB) *UserStore {
+	return &UserStore{db: db}
+}
+
 func (s *UserStore) FindByEmail(email string) (*UserEntity, error) {
 	var user UserEntity
 	if err := s.db.QueryRowx("select * from user where email = ?", email).StructScan(&user); err != nil {
@@ -60,8 +64,4 @@ func (s *UserStore) Create(user *UserEntity) error {
 	}
 
 	return nil
-}
-
-func NewUserStore(db *sqlx.DB) *UserStore {
-	return &UserStore{db: db}
 }
