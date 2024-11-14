@@ -68,7 +68,7 @@ func (h *UserHandler) login(r *http.Request) (any, error) {
 	}
 
 	return LoginResponse{
-		User:   userEntity.ConvertToModel(),
+		User:   user,
 		Tokens: *tokens,
 	}, nil
 }
