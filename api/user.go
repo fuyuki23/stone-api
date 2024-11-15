@@ -3,10 +3,6 @@ package api
 import (
 	"database/sql"
 	"encoding/json"
-	"github.com/google/uuid"
-	"github.com/gorilla/mux"
-	"github.com/rs/zerolog/log"
-	"golang.org/x/crypto/bcrypt"
 	"net/http"
 	"net/mail"
 	"stone-api/internal/db"
@@ -15,13 +11,18 @@ import (
 	"stone-api/internal/token"
 	"strings"
 	"unicode/utf8"
+
+	"github.com/google/uuid"
+	"github.com/gorilla/mux"
+	"github.com/rs/zerolog/log"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type UserHandler struct {
 	userStore *db.UserStore
 }
 
-func (api *Api) initUserApi(router *mux.Router) {
+func (api *API) initUserAPI(router *mux.Router) {
 	api.user = &UserHandler{
 		userStore: api.serv.Store().UserStore(),
 	}
@@ -114,7 +115,6 @@ func (r RegisterRequest) Validate() error {
 
 func (r *RegisterRequest) Sanitize() error {
 	r.Email = strings.Trim(r.Email, " ")
-	// r.Password = strings.Trim(r.Password, " ") // Someone wants to use whitespace as password
 	if r.Name != nil {
 		*r.Name = strings.Trim(*r.Name, " ")
 		if len(*r.Name) == 0 {
@@ -125,7 +125,7 @@ func (r *RegisterRequest) Sanitize() error {
 	return nil
 }
 
-//type RegisterResponse = string
+// type RegisterResponse = string
 
 func (h *UserHandler) register(r *http.Request) (any, error) {
 	payload := RegisterRequest{}

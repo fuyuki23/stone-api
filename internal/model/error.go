@@ -22,9 +22,10 @@ func NewError(status int, code, message string) error {
 	}
 }
 
+// var ErrForbidden = NewError(403, "api.common.forbidden", "forbidden")
+// var ErrConflict = NewError(409, "api.common.conflict", "conflict")
+
 var ErrBadRequest = NewError(400, "api.common.bad_request", "bad request")
 var ErrUnauthorized = NewError(401, "api.common.unauthorized", "unauthorized")
-var ErrForbidden = NewError(403, "api.common.forbidden", "forbidden")
 var ErrNotFound = NewError(404, "api.common.not_found", "not found")
-var ErrConflict = NewError(409, "api.common.conflict", "conflict")
 var ErrUnknown = NewError(500, "api.common.unknown", "unknown error")

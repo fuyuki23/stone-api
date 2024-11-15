@@ -7,25 +7,24 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type Api struct {
+type API struct {
 	serv *web.Server
 	root *mux.Router
 
-	// handlers
-	user  *UserHandler
-	diary *DiaryHandler
+	user  *UserHandler  // handler
+	diary *DiaryHandler // handler
 }
 
-func NewApi(serv *web.Server) *Api {
-	api := &Api{
+func NewAPI(serv *web.Server) *API {
+	api := &API{
 		serv: serv,
 	}
 
 	// root
 	api.root = api.serv.BaseRouter
 
-	api.initUserApi(api.root.PathPrefix("/users").Subrouter())
-	api.initDiaryApi(api.root.PathPrefix("/diaries").Subrouter())
+	api.initUserAPI(api.root.PathPrefix("/users").Subrouter())
+	api.initDiaryAPI(api.root.PathPrefix("/diaries").Subrouter())
 
 	api.root.NotFoundHandler = http.HandlerFunc(NotFound)
 	api.root.MethodNotAllowedHandler = http.HandlerFunc(NotFound)

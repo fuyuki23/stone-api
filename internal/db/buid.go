@@ -3,6 +3,7 @@ package db
 import (
 	"database/sql/driver"
 	"fmt"
+
 	"github.com/google/uuid"
 )
 

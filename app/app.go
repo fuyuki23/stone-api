@@ -4,27 +4,29 @@ import (
 	"stone-api/api"
 	"stone-api/internal/db"
 	"stone-api/internal/web"
+
+	"github.com/pkg/errors"
 )
 
 type App struct {
 	serv *web.Server
-	api  *api.Api
+	api  *api.API
 }
 
 func New() (*App, error) {
 	dbConn, err := db.Init()
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to initialize db")
 	}
 
 	store := db.NewStore(dbConn)
 
 	serv := web.NewServer(store)
-	localApi := api.NewApi(serv)
+	localAPI := api.NewAPI(serv)
 
 	app := &App{
 		serv: serv,
-		api:  localApi,
+		api:  localAPI,
 	}
 
 	return app, nil
@@ -32,13 +34,4 @@ func New() (*App, error) {
 
 func (app *App) Serve() {
 	app.serv.Start()
-	//log.Fatal().Err(a.serv.ListenAndServe()).Send()
 }
-
-//func beforeExit(db *sqlx.DB) {
-//	// close db connection
-//	err := db.Close()
-//	if err != nil {
-//		log.Error().Err(err).Msg("failed to close db connection")
-//	}
-//}
