@@ -52,7 +52,7 @@ func (server *Server) Start() {
 	server.BaseRouter.Use(RequestID)
 
 	server.serv = &http.Server{
-		Addr:        addr,
+		Addr: addr,
 		Handler: handlers.LoggingHandler(
 			log.Logger,
 			handlers.CompressHandler(server.BaseRouter)),
