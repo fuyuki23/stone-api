@@ -1,11 +1,17 @@
 package web
 
 import (
+	"context"
 	"fmt"
+	"net"
 	"net/http"
+	"os"
+	"os/signal"
 	"stone-api/internal/config"
 	"stone-api/internal/db"
 	"stone-api/internal/utils"
+	"syscall"
+	"time"
 
 	"github.com/gorilla/handlers"
 	"github.com/gorilla/mux"
@@ -40,15 +46,62 @@ func (server *Server) Store() *db.Store {
 func (server *Server) Start() {
 	addr := fmt.Sprintf(":%d", config.Get().Server.Port)
 
+	ctx, cancel := context.WithCancel(context.Background())
+
 	server.serv = &http.Server{
-		Addr:    addr,
-		Handler: handlers.LoggingHandler(log.Logger, handlers.CompressHandler(server.BaseRouter)),
+		Addr:        addr,
+		Handler:     handlers.LoggingHandler(log.Logger, handlers.CompressHandler(server.BaseRouter)),
+		BaseContext: func(_ net.Listener) context.Context { return ctx },
 	}
 
 	server.PrintRoutes()
 
 	log.Info().Str("addr", addr).Msg("server started")
-	log.Fatal().Err(server.serv.ListenAndServe()).Send()
+	go func() {
+		if err := server.serv.ListenAndServe(); err != http.ErrServerClosed {
+			log.Fatal().Err(err).Send()
+		}
+	}()
+
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
+
+	// wait for signal
+	<-signalChan
+	log.Info().Msg("shutting down server")
+	// set exit code
+	// Exit with status 0, 2nd defer
+	defer os.Exit(0)
+	// Close database connection after server shutdown, 1st defer
+	defer func(db *sqlx.DB) {
+		log.Info().Msg("closing database connection")
+		err := db.Close()
+		if err != nil {
+			log.Error().Err(err).Msg("failed to close database")
+		}
+	}(server.DB())
+
+	// force shutdown server if it receives another signal within 10 seconds
+	go func() {
+		<-signalChan
+		log.Fatal().Msg("force shutdown server")
+	}()
+
+	// set timeout for graceful shutdown to 10 seconds
+	timeoutCtx, cancelTimeoutCtx := context.WithTimeout(context.Background(), time.Second*10)
+	defer cancelTimeoutCtx()
+
+	// graceful shutdown, wait for all connections to close for 10 seconds
+	if err := server.serv.Shutdown(timeoutCtx); err != nil {
+		log.Error().Err(err).Msg("failed to shutdown server")
+		cancel()
+		defer os.Exit(1)
+		return
+	} else {
+		log.Info().Msg("server stopped")
+	}
+
+	cancel()
 }
 
 func (server *Server) PrintRoutes() {
