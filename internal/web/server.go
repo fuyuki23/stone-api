@@ -57,19 +57,14 @@ func (server *Server) Start() {
 }
 
 func (server *Server) PrintRoutes() {
-	err := server.BaseRouter.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+	err := server.BaseRouter.Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
 		pathTemplate, err := route.GetPathTemplate()
 		if err != nil {
 			return nil
 		}
-		_, _ = route.GetPathRegexp()
-		//if err != nil {
-		//	return err
-		//}
 		methods, err := route.GetMethods()
 		if err != nil {
 			return nil
-			//return err
 		}
 		name := route.GetName()
 		for _, method := range methods {

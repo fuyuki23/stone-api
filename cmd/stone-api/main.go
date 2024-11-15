@@ -1,14 +1,15 @@
 package main
 
 import (
-	"github.com/pkg/errors"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"os"
 	"stone-api/app"
 	"stone-api/internal/config"
 	"time"
 	_ "time/tzdata"
+
+	"github.com/pkg/errors"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 func main() {

@@ -173,12 +173,15 @@ linters:
     - unconvert # remove unnecessary type conversions
     - wastedassign # finds wasted assignment statements.
     - whitespace # tool for detection of leading and trailing whitespace
-#    - wrapcheck # check that errors from external packages are wrapped during return to help identify the error source.
+    - wrapcheck # check that errors from external packages are wrapped during return to help identify the error source.
   disable:
-    - wrapcheck
     - typecheck
 issues:
   exclude: []
+  exclude-rules:
+    - path: 'api/.*.go'
+      linters:
+        - wrapcheck
   exclude-dirs-use-default: false
 severity:
   default-severity: warning

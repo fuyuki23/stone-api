@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	_ "github.com/go-sql-driver/mysql" // disable-line:revive
+	_ "github.com/go-sql-driver/mysql" // noline:godot
 	"github.com/jmoiron/sqlx"
 	"github.com/jmoiron/sqlx/reflectx"
 	"github.com/pkg/errors"

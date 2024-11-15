@@ -26,7 +26,7 @@ func (api *API) BaseHandler(handle StoneHandler) http.Handler {
 				log.Error().Err(err).Send()
 			}
 		} else {
-			if apiRes, ok := res.(response.ApiResponse); !ok {
+			if apiRes, ok := res.(response.APIResponse); !ok {
 				err = response.Ok(res).Send(w)
 			} else {
 				err = apiRes.Send(w)

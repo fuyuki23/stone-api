@@ -11,8 +11,8 @@ type API struct {
 	serv *web.Server
 	root *mux.Router
 
-	user  *UserHandler  // handler
-	diary *DiaryHandler // handler
+	user  *UserHandler  // user handler.
+	diary *DiaryHandler // diary handler.
 }
 
 func NewAPI(serv *web.Server) *API {
@@ -20,7 +20,7 @@ func NewAPI(serv *web.Server) *API {
 		serv: serv,
 	}
 
-	// root
+	// root mux router.
 	api.root = api.serv.BaseRouter
 
 	api.initUserAPI(api.root.PathPrefix("/users").Subrouter())
