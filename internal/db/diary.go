@@ -2,12 +2,15 @@ package db
 
 import (
 	"database/sql"
-	"github.com/google/uuid"
-	"github.com/jmoiron/sqlx"
-	"github.com/pkg/errors"
 	"stone-api/internal/model"
 	"stone-api/internal/utils"
 	"time"
+
+	"github.com/rs/zerolog/log"
+
+	"github.com/google/uuid"
+	"github.com/jmoiron/sqlx"
+	"github.com/pkg/errors"
 )
 
 type DiaryMood = string
@@ -72,13 +75,18 @@ func (s *DiaryStore) FindWithRange(userID BUID, start time.Time, end time.Time) 
 		ORDER BY create_at
 	`, userID, start.Format("2006-01-02 15:04:05"), end.Format("2006-01-02 15:04:05"))
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to find diaries with range")
 	}
+	defer func() {
+		if err = rows.Close(); err != nil {
+			log.Err(err).Msg("failed to close rows")
+		}
+	}()
 
 	for rows.Next() {
 		var diary DiaryEntity
 		if err = rows.StructScan(&diary); err != nil {
-			return nil, err
+			return nil, errors.Wrap(err, "failed to scan diary")
 		}
 		diaries = append(diaries, diary)
 	}
@@ -99,7 +107,7 @@ func (s *DiaryStore) FindByDate(userID BUID, date time.Time) (*DiaryEntity, erro
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
-		return nil, err
+		return nil, errors.Wrap(err, "failed to find diary by date")
 	}
 
 	return &diary, nil
@@ -115,7 +123,7 @@ func (s *DiaryStore) FindByID(diaryID BUID, userID BUID) (*DiaryEntity, error) {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
 		}
-		return nil, err
+		return nil, errors.Wrap(err, "failed to find diary by id")
 	}
 
 	return &diary, nil
@@ -127,11 +135,11 @@ func (s *DiaryStore) Create(diary *DiaryEntity) error {
 		VALUES (?, ?, ?, ?, ?)
 	`, diary.ID, diary.UserID, diary.Title, diary.Content, diary.Mood)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to create diary")
 	}
 
 	if err = s.db.QueryRowx("select * from diary where id = ?", diary.ID).StructScan(diary); err != nil {
-		return err
+		return errors.Wrap(err, "failed to reload created diary")
 	}
 
 	return nil
@@ -144,11 +152,11 @@ func (s *DiaryStore) Update(diary *DiaryEntity) error {
 		WHERE id = ? AND user_id = ?
 	`, diary.Title, diary.Content, diary.Mood, diary.ID, diary.UserID)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to update diary")
 	}
 
 	if err = s.db.QueryRowx("select * from diary where id = ?", diary.ID).StructScan(diary); err != nil {
-		return err
+		return errors.Wrap(err, "failed to reload updated diary")
 	}
 
 	return nil
@@ -160,7 +168,7 @@ func (s *DiaryStore) DeleteByID(diaryID BUID, userID BUID) error {
 		WHERE id = ? AND user_id = ?
 	`, diaryID, userID)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to delete diary by id")
 	}
 
 	return nil

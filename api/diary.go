@@ -1,10 +1,6 @@
 package api
 
 import (
-	"github.com/goccy/go-json"
-	"github.com/google/uuid"
-	"github.com/gorilla/mux"
-	"github.com/rs/zerolog/log"
 	"net/http"
 	"slices"
 	"stone-api/internal/db"
@@ -14,6 +10,11 @@ import (
 	"strings"
 	"time"
 	"unicode/utf8"
+
+	"github.com/goccy/go-json"
+	"github.com/google/uuid"
+	"github.com/gorilla/mux"
+	"github.com/rs/zerolog/log"
 )
 
 type DiaryHandler struct {
@@ -21,7 +22,7 @@ type DiaryHandler struct {
 	diaryStore *db.DiaryStore
 }
 
-func (api *Api) initDiaryApi(router *mux.Router) {
+func (api *API) initDiaryAPI(router *mux.Router) {
 	api.diary = &DiaryHandler{
 		userStore:  api.serv.Store().UserStore(),
 		diaryStore: api.serv.Store().DiaryStore(),
@@ -104,31 +105,28 @@ func (r CreateDiaryRequest) Validate() error {
 	if r.Title == "" {
 		log.Error().Msg("title is required")
 		return model.ErrBadRequest
-	} else {
-		titleLength := utf8.RuneCountInString(r.Title)
-		if titleLength > 255 {
-			log.Error().Msg("title is too long")
-			return model.ErrBadRequest
-		}
+	}
+	titleLength := utf8.RuneCountInString(r.Title)
+	if titleLength > 255 {
+		log.Error().Msg("title is too long")
+		return model.ErrBadRequest
 	}
 	if r.Content == "" {
 		log.Error().Msg("content is required")
 		return model.ErrBadRequest
-	} else {
-		contentLength := utf8.RuneCountInString(r.Content)
-		if contentLength > 1024 {
-			log.Error().Msg("content is too long")
-			return model.ErrBadRequest
-		}
+	}
+	contentLength := utf8.RuneCountInString(r.Content)
+	if contentLength > 1024 {
+		log.Error().Msg("content is too long")
+		return model.ErrBadRequest
 	}
 	if r.Mood == "" {
 		log.Error().Msg("mood is required")
 		return model.ErrBadRequest
-	} else {
-		if idx := slices.Index(db.DiaryMoodAll, r.Mood); idx == -1 {
-			log.Error().Msg("invalid mood")
-			return model.ErrBadRequest
-		}
+	}
+	if idx := slices.Index(db.DiaryMoodAll, r.Mood); idx == -1 {
+		log.Error().Msg("invalid mood")
+		return model.ErrBadRequest
 	}
 
 	return nil
@@ -190,35 +188,32 @@ func (r UpdateDiaryRequest) Validate() error {
 		if *r.Title == "" {
 			log.Error().Msg("title is required")
 			return model.ErrBadRequest
-		} else {
-			titleLength := utf8.RuneCountInString(*r.Title)
-			if titleLength > 255 {
-				log.Error().Msg("title is too long")
-				return model.ErrBadRequest
-			}
+		}
+		titleLength := utf8.RuneCountInString(*r.Title)
+		if titleLength > 255 {
+			log.Error().Msg("title is too long")
+			return model.ErrBadRequest
 		}
 	}
 	if r.Content != nil {
 		if *r.Content == "" {
 			log.Error().Msg("content is required")
 			return model.ErrBadRequest
-		} else {
-			contentLength := utf8.RuneCountInString(*r.Content)
-			if contentLength > 1024 {
-				log.Error().Msg("content is too long")
-				return model.ErrBadRequest
-			}
+		}
+		contentLength := utf8.RuneCountInString(*r.Content)
+		if contentLength > 1024 {
+			log.Error().Msg("content is too long")
+			return model.ErrBadRequest
 		}
 	}
 	if r.Mood != nil {
 		if *r.Mood == "" {
 			log.Error().Msg("mood is required")
 			return model.ErrBadRequest
-		} else {
-			if idx := slices.Index(db.DiaryMoodAll, *r.Mood); idx == -1 {
-				log.Error().Msg("invalid mood")
-				return model.ErrBadRequest
-			}
+		}
+		if idx := slices.Index(db.DiaryMoodAll, *r.Mood); idx == -1 {
+			log.Error().Msg("invalid mood")
+			return model.ErrBadRequest
 		}
 	}
 

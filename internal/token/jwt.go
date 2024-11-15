@@ -6,6 +6,8 @@ import (
 	"stone-api/internal/model"
 	"time"
 
+	"github.com/pkg/errors"
+
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/rs/zerolog/log"
 )
@@ -74,7 +76,7 @@ func GetEmailFromToken(token string) (string, error) {
 }
 
 func createAccessToken(user *model.User) (string, error) {
-	return jwt.NewWithClaims(jwt.SigningMethodRS256, Claims{
+	token, err := jwt.NewWithClaims(jwt.SigningMethodRS256, Claims{
 		Type:  "access",
 		Email: user.Email,
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -83,10 +85,15 @@ func createAccessToken(user *model.User) (string, error) {
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * 15)),
 		},
 	}).SignedString(getKey())
+	if err != nil {
+		return "", errors.Wrap(err, "failed to create access token")
+	}
+
+	return token, nil
 }
 
 func createRefreshToken(user *model.User) (string, error) {
-	return jwt.NewWithClaims(jwt.SigningMethodRS256, Claims{
+	token, err := jwt.NewWithClaims(jwt.SigningMethodRS256, Claims{
 		Type:  "access",
 		Email: user.Email,
 		RegisteredClaims: jwt.RegisteredClaims{
@@ -95,6 +102,11 @@ func createRefreshToken(user *model.User) (string, error) {
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * 15)),
 		},
 	}).SignedString(getKey())
+	if err != nil {
+		return "", errors.Wrap(err, "failed to create refresh token")
+	}
+
+	return token, nil
 }
 
 func getKey() *rsa.PrivateKey {
@@ -119,7 +131,7 @@ func getClaims(userToken string) (*Claims, error) {
 		return &(getKey().PublicKey), nil
 	})
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to parse token")
 	}
 	if !token.Valid {
 		return nil, jwt.ErrTokenExpired

@@ -2,11 +2,12 @@ package db
 
 import (
 	"database/sql"
+	"stone-api/internal/model"
+	"time"
+
 	"github.com/google/uuid"
 	"github.com/jmoiron/sqlx"
 	"github.com/pkg/errors"
-	"stone-api/internal/model"
-	"time"
 )
 
 type UserEntity struct {
@@ -46,21 +47,21 @@ func (s *UserStore) FindByEmail(email string) (*UserEntity, error) {
 			return nil, nil
 		}
 
-		return nil, err
+		return nil, errors.Wrap(err, "failed to find user by email")
 	}
 
 	return &user, nil
 }
 
 func (s *UserStore) Create(user *UserEntity) error {
-	// create user with sqlx.DB and after insert get the last inserted id
+	// create user with sqlx.DB and after insert get the last inserted id.
 	_, err := s.db.Exec("insert into user (id, email, password, name) values (?, ?, ?, ?)", user.ID, user.Email, user.Password, user.Name)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to create user")
 	}
 
-	if err = s.db.QueryRowx("select * from user where id = user.ID").StructScan(user); err != nil {
-		return err
+	if err = s.db.QueryRowx("select * from user where id = ?", user.ID).StructScan(user); err != nil {
+		return errors.Wrap(err, "failed to reload created user")
 	}
 
 	return nil

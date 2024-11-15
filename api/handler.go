@@ -12,9 +12,13 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+type contextKey string
+
+var sessionKey = contextKey("session")
+
 type StoneHandler = func(r *http.Request) (any, error)
 
-func (api *Api) BaseHandler(handle StoneHandler) http.Handler {
+func (api *API) BaseHandler(handle StoneHandler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if res, err := handle(r); err != nil {
 			err = response.Fail(err).Send(w)
@@ -34,7 +38,7 @@ func (api *Api) BaseHandler(handle StoneHandler) http.Handler {
 	})
 }
 
-func (api *Api) AuthHandler(handle StoneHandler) http.Handler {
+func (api *API) AuthHandler(handle StoneHandler) http.Handler {
 	return api.BaseHandler(func(r *http.Request) (any, error) {
 		authorization := strings.Trim(r.Header.Get("Authorization"), " ")
 		if authorization == "" || !strings.HasPrefix(authorization, "Bearer ") {
@@ -63,14 +67,14 @@ func (api *Api) AuthHandler(handle StoneHandler) http.Handler {
 			return nil, model.ErrUnauthorized
 		}
 
-		r = r.WithContext(context.WithValue(r.Context(), "session", user))
+		r = r.WithContext(context.WithValue(r.Context(), sessionKey, user))
 
 		return handle(r)
 	})
 }
 
 func getUser(r *http.Request, user *model.User) error {
-	maybeUser, ok := r.Context().Value("session").(*db.UserEntity)
+	maybeUser, ok := r.Context().Value(sessionKey).(*db.UserEntity)
 	if !ok {
 		log.Debug().Msg("failed to get user from context")
 		return model.ErrUnauthorized
@@ -80,6 +84,6 @@ func getUser(r *http.Request, user *model.User) error {
 	return nil
 }
 
-var NotFound = func(w http.ResponseWriter, r *http.Request) {
+var NotFound = func(w http.ResponseWriter, _ *http.Request) {
 	log.Error().Err(response.Fail(model.ErrNotFound).Status(http.StatusNotFound).Send(w)).Send()
 }
