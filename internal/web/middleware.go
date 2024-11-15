@@ -1,8 +1,9 @@
 package web
 
 import (
-	"github.com/google/uuid"
 	"net/http"
+
+	"github.com/google/uuid"
 )
 
 func RequestID(next http.Handler) http.Handler {
