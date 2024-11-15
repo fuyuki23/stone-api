@@ -28,3 +28,6 @@ preview-stop:
 
 preview-clean: preview-stop
 	docker rmi $(docker images -f "dangling=true" -q)
+
+lint:
+	golangci-lint run ./...
