@@ -10,7 +10,7 @@ import (
 type BUID uuid.UUID
 
 func (u BUID) Value() (driver.Value, error) {
-	return uuid.UUID(u).MarshalBinary()
+	return uuid.UUID(u).MarshalBinary() // nolint:wrapcheck
 }
 
 func (u *BUID) Scan(value interface{}) error {
@@ -21,7 +21,7 @@ func (u *BUID) Scan(value interface{}) error {
 
 	parsedUUID, err := uuid.FromBytes(bytes)
 	if err != nil {
-		return err
+		return err // nolint:wrapcheck
 	}
 
 	*u = BUID(parsedUUID)

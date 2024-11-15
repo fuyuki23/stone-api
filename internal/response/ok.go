@@ -2,6 +2,6 @@ package response
 
 import "net/http"
 
-func Ok(data interface{}) ApiResponse {
-	return ApiResponse{status: http.StatusOK, data: data}
+func Ok(data interface{}) APIResponse {
+	return APIResponse{status: http.StatusOK, data: data}
 }

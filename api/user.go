@@ -125,8 +125,6 @@ func (r *RegisterRequest) Sanitize() error {
 	return nil
 }
 
-// type RegisterResponse = string
-
 func (h *UserHandler) register(r *http.Request) (any, error) {
 	payload := RegisterRequest{}
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {

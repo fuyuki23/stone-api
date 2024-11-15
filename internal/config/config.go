@@ -2,6 +2,7 @@ package config
 
 import (
 	"github.com/ilyakaznacheev/cleanenv"
+	"github.com/pkg/errors"
 )
 
 type RootConfig struct {
@@ -21,7 +22,7 @@ var instance RootConfig
 
 func Load() error {
 	if err := cleanenv.ReadConfig("config.toml", &instance); err != nil {
-		return err
+		return errors.Wrap(err, "failed to read config")
 	}
 
 	return nil
