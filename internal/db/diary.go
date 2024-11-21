@@ -20,7 +20,7 @@ const (
 	DiaryMoodAngry    DiaryMood = "angry"
 	DiaryMoodSad      DiaryMood = "sad"
 	DiaryMoodNeutral  DiaryMood = "neutral"
-	DiaryMoodMad      DiaryMood = "Mad"
+	DiaryMoodMad      DiaryMood = "mad"
 	DiaryMoodCry      DiaryMood = "cry"
 	DiaryMoodHappy    DiaryMood = "happy"
 	DiaryMoodExhaust  DiaryMood = "exhaust"
@@ -101,7 +101,7 @@ func (s *DiaryStore) FindByDate(userID BUID, date time.Time) (*DiaryEntity, erro
 		SELECT * FROM diary
 		WHERE user_id = ?
 		AND create_at >= ? AND create_at <= ?
-		
+
 	`, userID, utils.AppendString(localDate, " 00:00:00"), utils.AppendString(localDate, " 23:59:59")).StructScan(&diary)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
