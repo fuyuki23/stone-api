@@ -29,6 +29,7 @@ func (api *API) initUserAPI(router *mux.Router) {
 
 	router.Handle("/login", api.BaseHandler(api.user.login)).Methods(http.MethodPost).Name("Login")
 	router.Handle("/register", api.BaseHandler(api.user.register)).Methods(http.MethodPost).Name("Register")
+  router.Handle("/refresh", api.BaseHandler(api.user.refresh)).Methods(http.MethodPost).Name("Refresh Tokens")
 	router.Handle("/me", api.AuthHandler(api.user.me)).Methods(http.MethodGet).Name("Me")
 }
 
@@ -185,6 +186,72 @@ func (h *UserHandler) register(r *http.Request) (any, error) {
 	}
 
 	return response.Ok("ok").Status(http.StatusCreated), nil
+}
+
+type RefreshRequest struct {
+  AccessToken string
+  RefreshToken string
+}
+
+type RefreshResponse struct {
+  User  model.User   `json:"user"`
+  Tokens model.Tokens `json:"tokens"`
+}
+
+func (h *UserHandler) refresh(r *http.Request) (any, error) {
+  var payload RefreshRequest
+  if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+    return nil, model.ErrBadRequest
+  }
+
+  isValid, err := token.ValidateToken("access", payload.AccessToken, true)
+  if err != nil {
+    return nil, model.ErrUnauthorized
+  }
+  if !isValid {
+    return nil, model.ErrUnauthorized
+  }
+
+  isValid, err = token.ValidateToken("refresh", payload.RefreshToken, false)
+  if err != nil {
+    return nil, model.ErrUnauthorized
+  }
+  if !isValid {
+    return nil, model.ErrUnauthorized
+  }
+
+  accessEmail, err := token.GetEmailFromToken(payload.AccessToken, true)
+  if err != nil {
+    return nil, model.ErrUnauthorized
+  }
+  refreshEmail, err := token.GetEmailFromToken(payload.RefreshToken, false)
+  if err != nil {
+    return nil, model.ErrUnauthorized
+  }
+  if accessEmail != refreshEmail {
+    return nil, model.ErrUnauthorized
+  }
+
+  userEntity, err := h.userStore.FindByEmail(accessEmail)
+  if err != nil {
+    return nil, model.ErrUnauthorized
+  }
+  if userEntity == nil {
+    return nil, model.ErrUnauthorized
+  }
+  user := userEntity.ConvertToModel()
+
+  tokens, err := token.CreateTokens(user)
+  if err != nil {
+    return nil, model.ErrUnknown
+  }
+
+  // TODO: after refreshToken is used, it should be invalidated in the redis
+
+  return RefreshResponse {
+    User: user,
+    Tokens: *tokens,
+  }, nil
 }
 
 func (h *UserHandler) me(r *http.Request) (any, error) {

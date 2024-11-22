@@ -38,8 +38,8 @@ func CreateTokens(user model.User) (*model.Tokens, error) {
 	}, nil
 }
 
-func ValidateToken(tokenType string, userToken string) (bool, error) {
-	claims, err := getClaims(userToken)
+func ValidateToken(tokenType string, userToken string, ignoreExpire bool) (bool, error) {
+	claims, err := getClaims(userToken, ignoreExpire)
 	if err != nil {
 		return false, err
 	}
@@ -63,8 +63,8 @@ func ValidateToken(tokenType string, userToken string) (bool, error) {
 	return true, nil
 }
 
-func GetEmailFromToken(token string) (string, error) {
-	claims, err := getClaims(token)
+func GetEmailFromToken(token string, ignoreExpire bool) (string, error) {
+	claims, err := getClaims(token, ignoreExpire)
 	if err != nil {
 		return "", err
 	}
@@ -121,7 +121,7 @@ func getKey() *rsa.PrivateKey {
 	return privateKey
 }
 
-func getClaims(userToken string) (*Claims, error) {
+func getClaims(userToken string, ignoreExpire bool) (*Claims, error) {
 	token, err := jwt.ParseWithClaims(userToken, &Claims{}, func(token *jwt.Token) (interface{}, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodRSA); !ok {
 			log.Debug().Msg("invalid signing method")
@@ -134,7 +134,11 @@ func getClaims(userToken string) (*Claims, error) {
 		return nil, errors.Wrap(err, "failed to parse token")
 	}
 	if !token.Valid {
-		return nil, jwt.ErrTokenExpired
+    if errors.Is(err, jwt.ErrTokenExpired) && ignoreExpire {
+      log.Debug().Err(err).Msg("token is expired but will be ignored")
+    } else {
+		  return nil, err
+    }
 	}
 
 	if claims, ok := token.Claims.(*Claims); ok {

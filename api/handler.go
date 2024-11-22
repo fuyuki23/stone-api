@@ -46,12 +46,12 @@ func (api *API) AuthHandler(handle StoneHandler) http.Handler {
 			return nil, model.ErrUnauthorized
 		}
 		accessToken := authorization[7:]
-		isOk, err := token.ValidateToken("access", accessToken)
+		isOk, err := token.ValidateToken("access", accessToken, false)
 		if err != nil || !isOk {
 			log.Debug().Err(err).Msg("failed to validate access token")
 			return nil, model.ErrUnauthorized
 		}
-		email, err := token.GetEmailFromToken(accessToken)
+		email, err := token.GetEmailFromToken(accessToken, false)
 		if err != nil {
 			log.Debug().Err(err).Msg("failed to get email from token")
 			return nil, model.ErrUnauthorized
