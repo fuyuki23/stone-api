@@ -94,12 +94,12 @@ func createAccessToken(user *model.User) (string, error) {
 
 func createRefreshToken(user *model.User) (string, error) {
 	token, err := jwt.NewWithClaims(jwt.SigningMethodRS256, Claims{
-		Type:  "access",
+		Type:  "refresh",
 		Email: user.Email,
 		RegisteredClaims: jwt.RegisteredClaims{
 			Issuer:    ISSUER,
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
-			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * 15)),
+			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24 * 7)),
 		},
 	}).SignedString(getKey())
 	if err != nil {
@@ -134,11 +134,11 @@ func getClaims(userToken string, ignoreExpire bool) (*Claims, error) {
 		return nil, errors.Wrap(err, "failed to parse token")
 	}
 	if !token.Valid {
-    if errors.Is(err, jwt.ErrTokenExpired) && ignoreExpire {
-      log.Debug().Err(err).Msg("token is expired but will be ignored")
-    } else {
-		  return nil, err
-    }
+		if errors.Is(err, jwt.ErrTokenExpired) && ignoreExpire {
+			log.Debug().Err(err).Msg("token is expired but will be ignored")
+		} else {
+			return nil, err
+		}
 	}
 
 	if claims, ok := token.Claims.(*Claims); ok {
