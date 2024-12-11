@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"stone-api/internal/cache"
 	"stone-api/internal/config"
 	"stone-api/internal/db"
 	"stone-api/internal/utils"
@@ -24,12 +25,14 @@ type Server struct {
 	BaseRouter *mux.Router
 
 	store *db.Store
+	cache *cache.Manager
 }
 
-func NewServer(store *db.Store) *Server {
+func NewServer(store *db.Store, cacheManager *cache.Manager) *Server {
 	server := &Server{
 		BaseRouter: mux.NewRouter().StrictSlash(true),
 		store:      store,
+		cache:      cacheManager,
 	}
 
 	return server
@@ -41,6 +44,10 @@ func (server *Server) DB() *sqlx.DB {
 
 func (server *Server) Store() *db.Store {
 	return server.store
+}
+
+func (server *Server) Cache() *cache.Manager {
+	return server.cache
 }
 
 func (server *Server) Start() {

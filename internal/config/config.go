@@ -16,6 +16,10 @@ type RootConfig struct {
 	Database struct {
 		URI string `toml:"uri"`
 	} `toml:"database"`
+	Cache struct {
+		Host string `toml:"host"`
+		Port int    `toml:"port"`
+	} `toml:"cache"`
 }
 
 var instance RootConfig

@@ -6,10 +6,10 @@ build:
 	go build -a -ldflags '-w -extldflags "-static"' -o bin/main cmd/stone-api/main.go
 
 db-up:
-	docker compose -f docker/docker-compose.yaml up -d database
+	docker compose -f docker/docker-compose.yaml up -d database redis
 
 db-down:
-	docker compose -f docker/docker-compose.yaml down database
+	docker compose -f docker/docker-compose.yaml down database redis
 
 db-clean: db-down
 	rm -rf docker/mysql/data

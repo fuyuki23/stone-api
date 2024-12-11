@@ -2,11 +2,14 @@ package api
 
 import (
 	"context"
+	"github.com/pkg/errors"
+	"github.com/redis/go-redis/v9"
 	"net/http"
 	"stone-api/internal/db"
 	"stone-api/internal/model"
 	"stone-api/internal/response"
 	"stone-api/internal/token"
+	"stone-api/internal/utils"
 	"strings"
 
 	"github.com/rs/zerolog/log"
@@ -49,6 +52,23 @@ func (api *API) AuthHandler(handle StoneHandler) http.Handler {
 		isOk, err := token.ValidateToken("access", accessToken, false)
 		if err != nil || !isOk {
 			log.Debug().Err(err).Msg("failed to validate access token")
+			return nil, model.ErrUnauthorized
+		}
+
+		jti, err := token.GetJTIFromToken(accessToken, false)
+		if err != nil {
+			log.Debug().Err(err).Msg("failed to get jti from token")
+			return nil, model.ErrUnauthorized
+		}
+		var tokenType string
+		if tokenType, err = api.serv.Cache().Get(r.Context(), utils.AppendString("authn/ban/", jti)); err != nil {
+			if !errors.Is(err, redis.Nil) {
+				log.Debug().Err(err).Msg("failed to query cache")
+				return nil, model.ErrUnknown
+			}
+		}
+		if tokenType != "" {
+			log.Debug().Msg("token is banned")
 			return nil, model.ErrUnauthorized
 		}
 		email, err := token.GetEmailFromToken(accessToken, false)

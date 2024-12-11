@@ -13,3 +13,8 @@ services:
       MYSQL_PASSWORD: stone1234
     volumes:
       - ./mysql/docker-entrypoint-initdb.d/:/docker-entrypoint-initdb.d/
+  redis:
+    image: redis:7-alpine
+    restart: always
+    ports:
+      - "12346:6379"

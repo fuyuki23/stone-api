@@ -2,6 +2,7 @@ package token
 
 import (
 	"crypto/rsa"
+	"github.com/google/uuid"
 	"stone-api/internal/config"
 	"stone-api/internal/model"
 	"time"
@@ -75,11 +76,28 @@ func GetEmailFromToken(token string, ignoreExpire bool) (string, error) {
 	return claims.Email, nil
 }
 
+func GetJTIFromToken(token string, ignoreExpire bool) (string, error) {
+	claims, err := getClaims(token, ignoreExpire)
+	if err != nil {
+		return "", err
+	}
+	if claims == nil {
+		return "", model.ErrUnauthorized
+	}
+
+	return claims.RegisteredClaims.ID, nil
+}
+
 func createAccessToken(user *model.User) (string, error) {
+	jti, err := uuid.NewV7()
+	if err != nil {
+		return "", errors.Wrap(err, "failed to create jti")
+	}
 	token, err := jwt.NewWithClaims(jwt.SigningMethodRS256, Claims{
 		Type:  "access",
 		Email: user.Email,
 		RegisteredClaims: jwt.RegisteredClaims{
+			ID:        jti.String(),
 			Issuer:    ISSUER,
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Minute * 15)),
@@ -93,10 +111,15 @@ func createAccessToken(user *model.User) (string, error) {
 }
 
 func createRefreshToken(user *model.User) (string, error) {
+	jti, err := uuid.NewV7()
+	if err != nil {
+		return "", errors.Wrap(err, "failed to create jti")
+	}
 	token, err := jwt.NewWithClaims(jwt.SigningMethodRS256, Claims{
 		Type:  "refresh",
 		Email: user.Email,
 		RegisteredClaims: jwt.RegisteredClaims{
+			ID:        jti.String(),
 			Issuer:    ISSUER,
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24 * 7)),

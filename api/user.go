@@ -5,11 +5,14 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/mail"
+	"stone-api/internal/cache"
 	"stone-api/internal/db"
 	"stone-api/internal/model"
 	"stone-api/internal/response"
 	"stone-api/internal/token"
+	"stone-api/internal/utils"
 	"strings"
+	"time"
 	"unicode/utf8"
 
 	"github.com/google/uuid"
@@ -20,17 +23,20 @@ import (
 
 type UserHandler struct {
 	userStore *db.UserStore
+	cache     *cache.Manager
 }
 
 func (api *API) initUserAPI(router *mux.Router) {
 	api.user = &UserHandler{
 		userStore: api.serv.Store().UserStore(),
+		cache:     api.serv.Cache(),
 	}
 
 	router.Handle("/login", api.BaseHandler(api.user.login)).Methods(http.MethodPost).Name("Login")
 	router.Handle("/register", api.BaseHandler(api.user.register)).Methods(http.MethodPost).Name("Register")
-  router.Handle("/refresh", api.BaseHandler(api.user.refresh)).Methods(http.MethodPost).Name("Refresh Tokens")
+	router.Handle("/refresh", api.BaseHandler(api.user.refresh)).Methods(http.MethodPost).Name("Refresh Tokens")
 	router.Handle("/me", api.AuthHandler(api.user.me)).Methods(http.MethodGet).Name("Me")
+	router.Handle("/logout", api.AuthHandler(api.user.logout)).Methods(http.MethodPost).Name("Logout")
 }
 
 type LoginRequest struct {
@@ -189,69 +195,70 @@ func (h *UserHandler) register(r *http.Request) (any, error) {
 }
 
 type RefreshRequest struct {
-  AccessToken string
-  RefreshToken string
+	AccessToken  string
+	RefreshToken string
 }
 
 type RefreshResponse struct {
-  User  model.User   `json:"user"`
-  Tokens model.Tokens `json:"tokens"`
+	User   model.User   `json:"user"`
+	Tokens model.Tokens `json:"tokens"`
 }
 
 func (h *UserHandler) refresh(r *http.Request) (any, error) {
-  var payload RefreshRequest
-  if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-    return nil, model.ErrBadRequest
-  }
+	// TODO: check if the refresh token is banned
+	var payload RefreshRequest
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		return nil, model.ErrBadRequest
+	}
 
-  isValid, err := token.ValidateToken("access", payload.AccessToken, true)
-  if err != nil {
-    return nil, model.ErrUnauthorized
-  }
-  if !isValid {
-    return nil, model.ErrUnauthorized
-  }
+	isValid, err := token.ValidateToken("access", payload.AccessToken, true)
+	if err != nil {
+		return nil, model.ErrUnauthorized
+	}
+	if !isValid {
+		return nil, model.ErrUnauthorized
+	}
 
-  isValid, err = token.ValidateToken("refresh", payload.RefreshToken, false)
-  if err != nil {
-    return nil, model.ErrUnauthorized
-  }
-  if !isValid {
-    return nil, model.ErrUnauthorized
-  }
+	isValid, err = token.ValidateToken("refresh", payload.RefreshToken, false)
+	if err != nil {
+		return nil, model.ErrUnauthorized
+	}
+	if !isValid {
+		return nil, model.ErrUnauthorized
+	}
 
-  accessEmail, err := token.GetEmailFromToken(payload.AccessToken, true)
-  if err != nil {
-    return nil, model.ErrUnauthorized
-  }
-  refreshEmail, err := token.GetEmailFromToken(payload.RefreshToken, false)
-  if err != nil {
-    return nil, model.ErrUnauthorized
-  }
-  if accessEmail != refreshEmail {
-    return nil, model.ErrUnauthorized
-  }
+	accessEmail, err := token.GetEmailFromToken(payload.AccessToken, true)
+	if err != nil {
+		return nil, model.ErrUnauthorized
+	}
+	refreshEmail, err := token.GetEmailFromToken(payload.RefreshToken, false)
+	if err != nil {
+		return nil, model.ErrUnauthorized
+	}
+	if accessEmail != refreshEmail {
+		return nil, model.ErrUnauthorized
+	}
 
-  userEntity, err := h.userStore.FindByEmail(accessEmail)
-  if err != nil {
-    return nil, model.ErrUnauthorized
-  }
-  if userEntity == nil {
-    return nil, model.ErrUnauthorized
-  }
-  user := userEntity.ConvertToModel()
+	userEntity, err := h.userStore.FindByEmail(accessEmail)
+	if err != nil {
+		return nil, model.ErrUnauthorized
+	}
+	if userEntity == nil {
+		return nil, model.ErrUnauthorized
+	}
+	user := userEntity.ConvertToModel()
 
-  tokens, err := token.CreateTokens(user)
-  if err != nil {
-    return nil, model.ErrUnknown
-  }
+	tokens, err := token.CreateTokens(user)
+	if err != nil {
+		return nil, model.ErrUnknown
+	}
 
-  // TODO: after refreshToken is used, it should be invalidated in the redis
+	// TODO: after refreshToken is used, it should be invalidated in the redis
 
-  return RefreshResponse {
-    User: user,
-    Tokens: *tokens,
-  }, nil
+	return RefreshResponse{
+		User:   user,
+		Tokens: *tokens,
+	}, nil
 }
 
 func (h *UserHandler) me(r *http.Request) (any, error) {
@@ -263,4 +270,55 @@ func (h *UserHandler) me(r *http.Request) (any, error) {
 	log.Debug().Interface("sessionUser", sessionUser).Msg("authorized")
 
 	return sessionUser, nil
+}
+
+type LogoutRequest struct {
+	RefreshToken string `json:"refreshToken"`
+}
+
+func (h *UserHandler) logout(r *http.Request) (any, error) {
+	var sessionUser model.User
+	if err := getUser(r, &sessionUser); err != nil {
+		return nil, err
+	}
+
+	var payload LogoutRequest
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		return nil, model.ErrBadRequest
+	}
+
+	log.Debug().Interface("sessionUser", sessionUser).Msg("authorized")
+	accessToken := r.Header.Get("Authorization")
+	if accessToken == "" {
+		log.Debug().Msg("no access token")
+		return nil, model.ErrUnauthorized
+	}
+	accessToken = accessToken[7:]
+	refreshToken := payload.RefreshToken
+	if refreshToken == "" {
+		log.Debug().Msg("no refresh token")
+		return nil, model.ErrBadRequest
+	}
+
+	accessTokenID, err := token.GetJTIFromToken(accessToken, false)
+	if err != nil {
+		log.Debug().Err(err).Msg("failed to get jti from access token")
+		return nil, model.ErrUnauthorized
+	}
+	refreshTokenID, err := token.GetJTIFromToken(refreshToken, false)
+	if err != nil {
+		log.Debug().Err(err).Msg("failed to get jti from refresh token")
+		return nil, model.ErrUnauthorized
+	}
+
+	if err := h.cache.Set(r.Context(), utils.AppendString("authn/ban/", accessTokenID), "access", time.Minute*15); err != nil {
+		log.Error().Err(err).Msg("failed to set access token to cache")
+		return nil, model.ErrUnknown
+	}
+	if err := h.cache.Set(r.Context(), utils.AppendString("authn/ban/", refreshTokenID), "refresh", time.Hour*24*7); err != nil {
+		log.Error().Err(err).Msg("failed to set refresh token to cache")
+		return nil, model.ErrUnknown
+	}
+
+	return response.Ok("").Status(http.StatusNoContent), nil
 }

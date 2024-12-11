@@ -2,6 +2,7 @@ package app
 
 import (
 	"stone-api/api"
+	"stone-api/internal/cache"
 	"stone-api/internal/db"
 	"stone-api/internal/web"
 
@@ -21,7 +22,9 @@ func New() (*App, error) {
 
 	store := db.NewStore(dbConn)
 
-	serv := web.NewServer(store)
+	cacheManager := cache.New(cache.Init())
+
+	serv := web.NewServer(store, cacheManager)
 	localAPI := api.NewAPI(serv)
 
 	app := &App{
